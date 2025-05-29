@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"strings"
 
-	sims "github.com/cosmos/cosmos-sdk/testutil/sims"
+	"github.com/cosmos/cosmos-sdk/testutil/sims"
 	rosettaCmd "github.com/cosmos/rosetta/cmd"
 	"github.com/prometheus/client_golang/prometheus"
 
@@ -877,6 +877,9 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig params.EncodingConfig, t
 	rootCmd.AddCommand(CmdListQueries(rootCmd))
 	// add rosetta
 	rootCmd.AddCommand(rosettaCmd.RosettaCommand(encodingConfig.InterfaceRegistry, encodingConfig.Marshaler))
+
+	// add arbitrary signing
+	rootCmd.AddCommand(GetSignArbitraryCmd())
 }
 
 func addModuleInitFlags(startCmd *cobra.Command) {
