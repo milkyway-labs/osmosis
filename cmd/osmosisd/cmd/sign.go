@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -14,6 +15,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	flagEncoding = "encoding"
+)
+
 type SignatureData struct {
 	Address   string `json:"address"`
 	PubKey    string `json:"pub_key"`
@@ -24,7 +29,7 @@ type SignatureData struct {
 // GetSignArbitraryCmd returns the command allowing to sign an arbitrary value for later verification
 func GetSignArbitraryCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "sign [value]",
+		Use:   "sign-arbitrary [value]",
 		Short: "Sign the given value using the private key associated to either the address or the private key provided with the --from flag",
 		Long: `Sign the given value using the private key associated to either the address or the private key provided with the --from flag.
 
@@ -81,11 +86,31 @@ The printed JSON object can be safely used as the verification proof when connec
 				return err
 			}
 
+			// Encode the values
+			encoding, err := cmd.Flags().GetString(flagEncoding)
+			if err != nil {
+				return fmt.Errorf("error getting encoding flag: %w", err)
+			}
+
+			var encodedSignature, encodedPubKey, encodedValue string
+			switch encoding {
+			case "hex":
+				encodedSignature = strings.ToLower(hex.EncodeToString(sigBz))
+				encodedPubKey = strings.ToLower(hex.EncodeToString(pubKey.Bytes()))
+				encodedValue = strings.ToLower(hex.EncodeToString(valueBz))
+			case "base64":
+				encodedSignature = base64.StdEncoding.EncodeToString(sigBz)
+				encodedPubKey = base64.StdEncoding.EncodeToString(pubKey.Bytes())
+				encodedValue = base64.StdEncoding.EncodeToString(valueBz)
+			default:
+				return fmt.Errorf("unsupported encoding: %s. Supported values: hex, base64", encoding)
+			}
+
 			signatureData := SignatureData{
 				Address:   strings.ToLower(pubKey.Address().String()),
-				Signature: strings.ToLower(hex.EncodeToString(sigBz)),
-				PubKey:    strings.ToLower(hex.EncodeToString(pubKey.Bytes())),
-				Value:     hex.EncodeToString(valueBz),
+				Signature: encodedSignature,
+				PubKey:    encodedPubKey,
+				Value:     encodedValue,
 			}
 
 			// Serialize the output as JSON and print it
@@ -98,6 +123,7 @@ The printed JSON object can be safely used as the verification proof when connec
 	}
 
 	flags.AddTxFlagsToCmd(cmd)
+	cmd.Flags().String(flagEncoding, "hex", "The encoding to use for the signed value. Supported values: hex, base64")
 
 	return cmd
 }
